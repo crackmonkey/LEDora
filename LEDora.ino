@@ -6,9 +6,21 @@
 #include <I2Cdev.h>
 #include <MPR121.h>
 
+enum {
+  FLICKER = 0,
+  CYLON = 1, 
+  STTOS = 2
+};
+#define MAXMODE 2
+byte mode = 0;
+
+
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(19, 15, NEO_GRB + NEO_KHZ800);
-uint32_t color;
+byte midpt;
+uint32_t color = Adafruit_NeoPixel::Color(255,0,0);
 byte r,g,b;
+
+
 MPR121 touch = MPR121();
 
 MMA8452Q accel;
@@ -19,22 +31,59 @@ void setup() {
   
   strip.begin();
   strip.show(); // Initialize all pixels to 'off'
+  midpt = strip.numPixels() / 2;
   
   r=g=b=0;
-  
+
   touch.initialize();
-  
+      touch.setCallback(0, MPR121::TOUCHED, modeCallback);
+  if (touch.testConnection()) {
+
+  } else {
+    Serial.println("Failed to connect to MPR121");
+  }
+
   accel.begin();
   accel.scale(4);
 }
 
+void modeCallback() {
+    mode++;
+    if (mode > MAXMODE) mode=0;
+    Serial.print("Mode:");
+    Serial.println(mode);
+}
+
 void loop() {
-  if (touch.getTouchStatus(0)) {
-    //colorWipe(strip.Color(0,128,0), 50);
-    cylon();
-  } else {
-    // based on the accelerometer
-    for(uint16_t i=0; i<strip.numPixels(); i++) {
+  touch.serviceCallbacks();
+  switch (mode) {
+    case FLICKER:
+      flicker();
+      break;
+    case CYLON:
+      cylon();
+      break;
+    case STTOS:
+      sttos();
+      break;
+    default:
+      flicker();
+  }
+}
+
+// Fill the dots one after the other with a color
+void colorWipe(uint32_t c, uint8_t wait) {
+  for(uint16_t i=0; i<strip.numPixels(); i++) {
+      strip.setPixelColor(i, c);
+      strip.show();
+      delay(wait);
+  }
+  strip.show();
+}
+
+void flicker() {
+
+ for(uint16_t i=0; i<strip.numPixels(); i++) {
       accel.axes(axes);
       /*    
       Serial.print("x: ");
@@ -50,20 +99,9 @@ void loop() {
       g = abs(axes[2]) / 6;
   
       strip.setPixelColor(i, r, g, b);
-      
+      strip.show();
       //delay(25);
     }
-  }
-  strip.show();
-}
-
-// Fill the dots one after the other with a color
-void colorWipe(uint32_t c, uint8_t wait) {
-  for(uint16_t i=0; i<strip.numPixels(); i++) {
-      strip.setPixelColor(i, c);
-      strip.show();
-      delay(wait);
-  }
 }
 
 #define SPREAD 4
@@ -94,3 +132,26 @@ void cylon() {
   
   delay(150);
 }
+
+void sttos() {
+  static byte pos = 0;
+  
+    // Clear the previous values
+  for (short i=0; i<strip.numPixels(); i++) {
+    strip.setPixelColor(i, 0,0,0);
+  }
+  
+  strip.setPixelColor(midpt+pos, color);
+  strip.setPixelColor(midpt-pos, color);
+  
+  strip.show();
+  
+  pos++;
+  if (pos > midpt) pos=0;
+  
+  Serial.print("pos:");
+  Serial.println(pos);
+  
+  delay(150);
+}
+
