@@ -1,3 +1,5 @@
+#include <EEPROM.h>
+
 #include <MMA8452Q.h>
 
 #include <Adafruit_NeoPixel.h>
@@ -6,14 +8,12 @@
 #include <I2Cdev.h>
 #include <MPR121.h>
 
-enum {
-  FLICKER = 0,
-  CYLON = 1, 
-  STTOS = 2
-};
-#define MAXMODE 2
-byte mode = 0;
+// EEPROM address to store the default mode
+#define DEFAULTMODE 0
 
+byte mode;
+byte modeOverride = 0;
+unsigned long modeOverrideTimeout = 0;
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(19, 15, NEO_GRB + NEO_KHZ800);
 byte midpt;
@@ -26,132 +26,51 @@ MPR121 touch = MPR121();
 MMA8452Q accel;
 int axes[3];
 
+extern String cmdbuf;  // from the commands file
+
 void setup() {
-  Serial.begin(115200);
+  Serial.begin((uint16_t)115200); // cast to silence a warning
   
   strip.begin();
   strip.show(); // Initialize all pixels to 'off'
+  strip.setBrightness(64); // Dim so I don't blind myself testing
   midpt = strip.numPixels() / 2;
   
   r=g=b=0;
 
   touch.initialize();
-      touch.setCallback(0, MPR121::TOUCHED, modeCallback);
-  if (touch.testConnection()) {
-
-  } else {
-    Serial.println("Failed to connect to MPR121");
-  }
+  touch.setCallback(0, MPR121::TOUCHED, &modeCallback);
 
   accel.begin();
   accel.scale(4);
+  
+  cmdbuf.reserve(32);
+  
+  mode = EEPROM.read(DEFAULTMODE); // EEPROM 0 is the default mode
 }
 
 void modeCallback() {
-    mode++;
-    if (mode > MAXMODE) mode=0;
-    Serial.print("Mode:");
-    Serial.println(mode);
+    changeMode(mode +1);
 }
 
 void loop() {
+  // Process touch events
   touch.serviceCallbacks();
-  switch (mode) {
-    case FLICKER:
-      flicker();
-      break;
-    case CYLON:
-      cylon();
-      break;
-    case STTOS:
-      sttos();
-      break;
-    default:
-      flicker();
-  }
-}
-
-// Fill the dots one after the other with a color
-void colorWipe(uint32_t c, uint8_t wait) {
-  for(uint16_t i=0; i<strip.numPixels(); i++) {
-      strip.setPixelColor(i, c);
-      strip.show();
-      delay(wait);
-  }
-  strip.show();
-}
-
-void flicker() {
-
- for(uint16_t i=0; i<strip.numPixels(); i++) {
-      accel.axes(axes);
-      /*    
-      Serial.print("x: ");
-      Serial.print(axes[0]);
-      Serial.print(", y: ");
-      Serial.print(axes[1]);
-      Serial.print(", z: ");
-      Serial.println(axes[2]);    
-      */
   
-      r = abs(axes[0]) / 6;
-      b = abs(axes[1]) / 6;
-      g = abs(axes[2]) / 6;
+  // Handle command over serial (USB or BT)
+  processCommands();
   
-      strip.setPixelColor(i, r, g, b);
-      strip.show();
-      //delay(25);
+  // handle animation
+  if (modeOverrideTimeout) { // if the mode is temporarilly overridden
+    if (millis() < modeOverrideTimeout) { // and it hasn't expired
+      animate(modeOverride);
+    } else { // clear the override
+      modeOverrideTimeout = 0;
+      // animate normally
+      animate(mode);
     }
-}
-
-#define SPREAD 4
-void cylon() {
-  static short pos = strip.numPixels() / 2;
-  static boolean direction = true;
-  
-  // Clear the previous values
-  for (short i=0; i<strip.numPixels(); i++) {
-    strip.setPixelColor(i, 0,0,0);
+  } else { // animate normally
+    animate(mode);
   }
- 
-  strip.setPixelColor(pos-2, 64,0,0);
-  strip.setPixelColor(pos-1, 128,0,0);
-  strip.setPixelColor(pos, 255,0,0);
-  strip.setPixelColor(pos+1, 128,0,0);
-  strip.setPixelColor(pos+2, 64,0,0);
-  strip.show();
-  
-  pos += direction ? 1 : -1;
-  
-  if (pos > 13) {
-    direction = false;
-  }
-  if (pos < 7) {
-    direction = true;
-  }
-  
-  delay(150);
-}
-
-void sttos() {
-  static byte pos = 0;
-  
-    // Clear the previous values
-  for (short i=0; i<strip.numPixels(); i++) {
-    strip.setPixelColor(i, 0,0,0);
-  }
-  
-  strip.setPixelColor(midpt+pos, color);
-  strip.setPixelColor(midpt-pos, color);
-  
-  strip.show();
-  
-  pos++;
-  if (pos > midpt) pos=0;
-  
-  Serial.print("pos:");
-  Serial.println(pos);
-  
-  delay(150);
 }
 
