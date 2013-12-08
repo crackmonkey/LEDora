@@ -5,7 +5,7 @@ unsigned long nextMove = millis();
 typedef void (*AnimationPtrType)(void);
 
 struct animationHandler {
-  const char * name;
+  const char *name;
   AnimationPtrType handler;
 };
 

@@ -3,7 +3,7 @@ String cmdbuf = "";
 typedef void (*CommandPtrType)(String arg);
 
 struct commandHandler {
-  const char * name;
+  const char *name;
   CommandPtrType handler;
 };
 

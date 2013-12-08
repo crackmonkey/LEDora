@@ -44,6 +44,7 @@ void setup() {
   accel.begin();
   accel.scale(4);
   
+  // pre-allocate a big-enough string buffer so the String class doesn't end up reallocating the string for every byte that comes in
   cmdbuf.reserve(32);
   
   mode = EEPROM.read(DEFAULTMODE); // EEPROM 0 is the default mode
