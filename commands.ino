@@ -13,20 +13,26 @@ commandHandler commands[] = {
   {"animation", cmdAnimation},
   {"defaultanimation", cmdDefaultAnimation},
   {"ring", cmdRing},
+  {"fade", cmdFade},
   {NULL, NULL}
 };
 
 void processCommands() {
   char chr = 0;
   String cmd = NULL,arg=NULL;
+  /*
   if (Serial.available()) // USB ACM
     chr = Serial.read();
-  if (Serial1.available()) // USART
+  if (Serial1.available()) // USART: BT module
     chr = Serial1.read();
+    */
+  if (!AnySerial.available())
+    return; // nothing to do
 
-  if (chr == 0) return; // nothing to do
+  //if (chr == 0) return; // nothing to do
+  chr=AnySerial.read();
 
-  if (chr == '\n') { // command complete, interpret it
+  if (chr == '\n' or chr=='\r') { // command complete, interpret it
     int split = cmdbuf.indexOf('=');
     
     if (split == -1) { // command with arg
@@ -51,7 +57,7 @@ void processCommands() {
         return;
       }
     }
-    Serial.println("invalid command"); 
+    AnySerial.println("invalid command"); 
   } else { // just more input, throw it on the pile until we see a \n
     cmdbuf += chr;
   }  
@@ -59,22 +65,25 @@ void processCommands() {
 
 void cmdColor(String arg) {
   if (arg == NULL) { // report current color
-    Serial.print("color=");
+    AnySerial.print("color=");
     // Serial.print does not include padding 0's, FYI
-    Serial.println(color, HEX);
+    AnySerial.println(color, HEX);
     return;
   }
   color = strtol(arg.c_str(), NULL, 16); // parse it as hex
+  r = (color >> 16) & 0xff;
+  g = (color >> 8) & 0xff;
+  b = (color >> 0) & 0xff;
   cmdColor(NULL); // report
 }
 
 void cmdAnimations(String arg) {
-  Serial.print("animations=");
+  AnySerial.print("animations=");
   for (byte i=0; animations[i].name != NULL; i++) {
-    Serial.print(animations[i].name);
-    Serial.print(' ');
+    AnySerial.print(animations[i].name);
+    AnySerial.print(' ');
   }
-  Serial.println();
+  AnySerial.println();
 }
 
 void cmdAnimation(String arg) {
@@ -82,35 +91,34 @@ void cmdAnimation(String arg) {
   byte newmode;
   
   if (arg == NULL) {
-    Serial.print("animation=");
-    Serial.println(animations[mode].name);
+    AnySerial.print("animation=");
+    AnySerial.println(animations[mode].name);
     return;
   }
   // use strtol instead of atoi so we can tell if it succeeds
   newmode = strtol(arg.c_str(), &endptr, 10);
   if (endptr != arg.c_str()) { // is a number
-    mode = newmode;
+    changeAnimation(newmode);
   } else { // is not a number, try searching the names table
-    for (byte i=0; i<ANIMATIONS; i++) {
+    for (byte i=0; i<numAnimations; i++) {
       if (arg == animations[i].name) {
-        mode = i;
-        cmdAnimation(NULL); // report
+        changeAnimation(i);
         return;
       }
     }
-    Serial.println("Invalid animation");
+    AnySerial.println("Invalid animation");
   }
 }
 
 void cmdDefaultAnimation(String arg) {
   if (arg == NULL) {
-    Serial.print("defaultmode=");
-    Serial.println(animations[mode].name[EEPROM.read(DEFAULTMODE)]);
+    AnySerial.print("defaultmode=");
+    AnySerial.println(animations[mode].name[EEPROM.read(EE_DEFAULT_ANIMATION)]);
     return;
   } else {
     byte prevmode = mode;
     cmdAnimation(arg); // steal the parsing from cmdAnimation
-    EEPROM.write(DEFAULTMODE, mode);
+    EEPROM.write(EE_DEFAULT_ANIMATION, mode);
     mode = prevmode;
     cmdDefaultAnimation(NULL); // Report
   }
@@ -119,5 +127,10 @@ void cmdDefaultAnimation(String arg) {
 void cmdRing(String arg) {
   modeOverride = 4;
   modeOverrideTimeout = millis() + 1500;
-  Serial.println("ringing");
+  AnySerial.println("ringing");
+}
+
+void cmdFade(String arg) {
+  modeOverride = 6;
+  modeOverrideTimeout = millis() + 7000;
 }
