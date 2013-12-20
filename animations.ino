@@ -19,6 +19,7 @@ animationHandler animations[] = {
   {"fade", fade},
   {"twinkle", twinkle},
   {"rainbow", rainbow},
+  {"police", police},
   {NULL, NULL}
 };
 byte numAnimations = (sizeof(animations)/sizeof(animationHandler)) - 1;
@@ -273,7 +274,6 @@ uint32_t Wheel(byte WheelPos) {
   }
 }
 
-
 // helper function for other animations
 // fades the current color values by a certain ammount
 // Pointer math, yay!
@@ -288,4 +288,21 @@ void dimall(byte dim){
     c      = *pixels;
     *pixels++ = (c * scale) >> 8;
   }
+}
+
+#define POLICE_SPIN_RATE 20*DEG_TO_RAD
+void police() {
+  static float angle;
+  float pixelToRad = (2*PI) / strip.numPixels();
+  
+  for(byte i=0; i<strip.numPixels(); i++) {
+    float pixelAngle = angle+(pixelToRad*i);
+    strip.setPixelColor(i, 127+127*sin(pixelAngle), 0, 127+127*sin(-pixelAngle));
+  }
+  strip.show();
+  angle += POLICE_SPIN_RATE;
+  if (angle > (PI*2)) {
+    angle -= PI*2;
+  }
+  NEXTMOVE(10);
 }
