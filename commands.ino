@@ -9,6 +9,7 @@ struct commandHandler {
 
 commandHandler commands[] = {
   {"color", cmdColor},
+  {"brightness", cmdBrightness},
   {"animations", cmdAnimations},
   {"animation", cmdAnimation},
   {"defaultanimation", cmdDefaultAnimation},
@@ -75,6 +76,17 @@ void cmdColor(String arg) {
   g = (color >> 8) & 0xff;
   b = (color >> 0) & 0xff;
   cmdColor(NULL); // report
+}
+
+void cmdBrightness(String arg) {
+  if (arg == NULL) { // report current color
+    AnySerial.print("brightness=");
+    // Serial.print does not include padding 0's, FYI
+    AnySerial.println(brightness, HEX);
+    return;
+  }
+  color = strtol(arg.c_str(), NULL, 16); // parse it as hex
+  cmdBrightness(NULL); // report
 }
 
 void cmdAnimations(String arg) {
