@@ -14,19 +14,15 @@ commandHandler commands[] = {
   {"animation", cmdAnimation},
   {"defaultanimation", cmdDefaultAnimation},
   {"ring", cmdRing},
-  {"fade", cmdFade},
+//  {"fade", cmdFade},
+  {"rn52", cmdRn52},
   {NULL, NULL}
 };
 
 void processCommands() {
   char chr = 0;
   String cmd = NULL,arg=NULL;
-  /*
-  if (Serial.available()) // USB ACM
-    chr = Serial.read();
-  if (Serial1.available()) // USART: BT module
-    chr = Serial1.read();
-    */
+
   if (!AnySerial.available())
     return; // nothing to do
 
@@ -58,7 +54,8 @@ void processCommands() {
         return;
       }
     }
-    AnySerial.println("invalid command"); 
+    if (cmd.length() == 0) return; // empty command, ignore it
+    AnySerial.println("invalid command:"+cmd); 
   } else { // just more input, throw it on the pile until we see a \n
     cmdbuf += chr;
   }  
@@ -85,7 +82,8 @@ void cmdBrightness(String arg) {
     AnySerial.println(brightness, HEX);
     return;
   }
-  color = strtol(arg.c_str(), NULL, 16); // parse it as hex
+  brightness = strtol(arg.c_str(), NULL, 16); // parse it as hex
+  strip.setBrightness(brightness);
   cmdBrightness(NULL); // report
 }
 
@@ -137,12 +135,34 @@ void cmdDefaultAnimation(String arg) {
 }
 
 void cmdRing(String arg) {
-  modeOverride = 4;
+  modeOverride = 8; // hard coded index in the animations[] array
   modeOverrideTimeout = millis() + 1500;
+  
+  if (arg.length() == 0) {
+    // default ring colors
+    ringColors[0] = 0xff0000;
+    ringColors[1] = 0xffffff;
+  } else {
+    char *next;
+    ringColors[0] = strtol(arg.c_str(), &next, 16);
+    if (next != NULL && *next == ',') {
+      // second color specified
+      ringColors[1] = strtol(next+1, NULL, 16);
+    } else {
+      ringColors[1] = 0xffffff; // default to white
+    }
+  }
+
   AnySerial.println("ringing");
 }
 
 void cmdFade(String arg) {
-  modeOverride = 6;
+  modeOverride = 8; // hard coded index in the animations[] array
   modeOverrideTimeout = millis() + 7000;
 }
+
+// Send a command to the RN52 module
+void cmdRn52(String arg) {
+  btmodule.sendCommand(arg);
+}
+

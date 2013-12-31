@@ -10,39 +10,18 @@ struct animationHandler {
 };
 
 animationHandler animations[] = {
-  {"flicker", flicker},
+  {"twinkle", twinkle},
   {"cylon", cylon},
   {"sttos", sttos},
-  {"christmas", christmas},
-  {"ring", ring},
-  {"preview", preview},
-  {"fade", fade},
-  {"twinkle", twinkle},
   {"rainbow", rainbow},
   {"police", police},
+  {"solid", solid},
+  {"flicker", flicker},
+  {"christmas", christmas},
+  {"ring", ring},
   {NULL, NULL}
 };
 byte numAnimations = (sizeof(animations)/sizeof(animationHandler)) - 1;
-
-/*
-enum {
-  FLICKER = 0,
-  CYLON = 1, 
-  STTOS = 2,
-  CHRISTMAS = 3,
-  RING = 4,
-  PREVIEW = 5,
-  MAXMODE = 6
-};
-String modes[] = {
-  "flicker",
-  "cylon",
-  "sttos",
-  "christmas",
-  "ring",
-  "preview"
-};
-*/
 
 void animate(byte anim) {
   // Don't process animations until there is something to do
@@ -72,16 +51,15 @@ void changeAnimation(byte newmode) {
 }
 
 void ring() {
-  static byte off = 0;
+  static boolean odd = false;
   
-  for (byte i=off; i<strip.numPixels(); i += 2) {
-    strip.setPixelColor(i, 0xff0000);
+  for (byte i=0; i<strip.numPixels(); i += 2) {
+    strip.setPixelColor(i, ringColors[odd]);
+    strip.setPixelColor(i+1, ringColors[!odd]);
   }
-  for (byte i=off+1; i<strip.numPixels(); i += 2) {
-    strip.setPixelColor(i, 0xffffff);
-  }
+
   strip.show();
-  off = off ? 0 : 1; // flip the offset back and forth
+  odd = !odd; // flip back and forth
   
   NEXTMOVE(35);
 }
@@ -175,13 +153,13 @@ void fade() {
   NEXTMOVE(500);
 }
 
-// Just show the color on all pixels for picking the right one.
-void preview() {
+// Just show the color on all pixels
+void solid() {
   for (byte i=0; i<strip.numPixels(); i++) {
     strip.setPixelColor(i, color);
   }
   strip.show();
-  NEXTMOVE(250);
+  NEXTMOVE(1000);
   
   // dump accelerometer data
   accel.axes(axes);
@@ -197,16 +175,14 @@ void preview() {
 }
 
 void christmas() {
-  static byte off = 0;
-  for (byte i=off; i<strip.numPixels(); i += 2) {
-    strip.setPixelColor(i, 0xff0000);
-  }
-  for (byte i=off+1; i<strip.numPixels(); i += 2) {
-    strip.setPixelColor(i, 0x00ff00);
+  static boolean odd = false;
+  for (byte i=0; i<strip.numPixels(); i += 2) {
+    strip.setPixelColor(i, odd ? 0xff0000 : 0x00ff00);
+    strip.setPixelColor(i+1, odd ? 0x00ff00 : 0xff0000);
   }
   strip.show();
   
-  off = off ? 0 : 1; // flip the offset back and forth
+  odd = !odd; // flip back and forth
 
   NEXTMOVE(750);
 }
