@@ -122,8 +122,8 @@ void cmdAnimation(String arg) {
 
 void cmdDefaultAnimation(String arg) {
   if (arg == NULL) {
-    AnySerial.print("defaultmode=");
-    AnySerial.println(animations[mode].name[EEPROM.read(EE_DEFAULT_ANIMATION)]);
+    AnySerial.print("defaultanimation=");
+    AnySerial.println(animations[EEPROM.read(EE_DEFAULT_ANIMATION)].name);
     return;
   } else {
     byte prevmode = mode;
@@ -135,7 +135,7 @@ void cmdDefaultAnimation(String arg) {
 }
 
 void cmdRing(String arg) {
-  modeOverride = 8; // hard coded index in the animations[] array
+  modeOverride = 9; // hard coded index in the animations[] array
   modeOverrideTimeout = millis() + 1500;
   
   if (arg.length() == 0) {

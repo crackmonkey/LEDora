@@ -55,7 +55,8 @@ uint32_t color;
 uint32_t ringColors[2]; // the colors to flash in "ring" mode, set by cmdRing
 byte r,g,b;
 
-byte brightness;
+// Dim by default
+byte brightness = 63;
 
 MPR121 touch = MPR121();
 
@@ -78,7 +79,7 @@ void setup() {
   
   strip.begin();
   strip.show(); // Initialize all pixels to 'off'
-  strip.setBrightness(64); // Dim so I don't blind myself testing
+  strip.setBrightness(brightness); 
   midpt = strip.numPixels() / 2;
 
   touch.initialize();

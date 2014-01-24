@@ -16,8 +16,9 @@ animationHandler animations[] = {
   {"rainbow", rainbow},
   {"police", police},
   {"solid", solid},
-  {"flicker", flicker},
+  {"dance", dance},
   {"christmas", christmas},
+  {"flicker", flicker},
   {"ring", ring},
   {NULL, NULL}
 };
@@ -160,18 +161,6 @@ void solid() {
   }
   strip.show();
   NEXTMOVE(1000);
-  
-  // dump accelerometer data
-  accel.axes(axes);
-  AnySerial.println("XYZ:");
-  AnySerial.println(axes[0]);
-  AnySerial.println(axes[1]);
-  AnySerial.println(axes[2]);
-  /*
-  Serial.print(sqrt(axes[0]*axes[0] + axes[1]*axes[1]));
-  Serial.print(" ");
-  Serial.println(atan2(axes[0], axes[1]) * RAD_TO_DEG);
-  */
 }
 
 void christmas() {
@@ -250,6 +239,25 @@ uint32_t Wheel(byte WheelPos) {
   }
 }
 
+// filthy struct hacking to scale a color value
+inline byte scaleColor(uint32_t inc, byte scale) {
+  struct splitLong {
+  union {
+    long value;
+    char split[4];
+  }__attribute__((packed));
+};
+
+  struct splitLong c;
+  c.value=inc;
+  
+  for (byte i=0;i<4;i++) {
+    c.split[i] = (c.split[i] * scale) >> 8;
+  }
+  
+  return c.value;
+}
+
 // helper function for other animations
 // fades the current color values by a certain ammount
 // Pointer math, yay!
@@ -281,4 +289,55 @@ void police() {
     angle -= PI*2;
   }
   NEXTMOVE(10);
+}
+
+#define DANCE_SMOOTHING 8
+void dance() {
+  static int aAvg[3];
+  int aDiff[3];
+  float angle, force;
+  static float radPerPixel = TWO_PI / strip.numPixels();
+  
+  dimall(4);
+  
+  accel.axes(axes);
+  for (byte i=0;i<3;i++) {
+    aDiff[i] = axes[i] - aAvg[i];
+  }
+  
+  // rough axes as the acceleromter doesn't site square
+  // 0/X = +left -right
+  // 1/Y = +forward -back
+  // 2/Z = +up -down
+  // 0 degrees is forward
+  angle = atan2f(aDiff[0], aDiff[1]);
+  force = sqrtf(powf(aDiff[0], 2) + powf(aDiff[1],2));
+  force = constrain(force, 0, 400); // max out the force for brightness adjusting later
+  /*
+  AnySerial.print(aDiff[1]);
+  AnySerial.print(" ");
+  AnySerial.print(aDiff[0]);
+  AnySerial.print(" ");
+  */
+  
+  // ignore signal noise
+  if (force > 75) {
+    byte pixel;
+    pixel = constrain(midpt + round((angle)/radPerPixel), 0, strip.numPixels());
+    //AnySerial.println(pixel);
+    /*
+    AnySerial.print(angle*RAD_TO_DEG);
+    AnySerial.print(" ");
+    AnySerial.println(force);
+*/
+    //strip.setPixelColor(pixel, color);
+    strip.setPixelColor(pixel, scaleColor(color,map(force,75,400,32,255)));
+  }
+  strip.show();
+  
+  // save previous accelerations
+  for (byte i=0;i<3;i++) {
+    aAvg[i] = (aAvg[i]*(DANCE_SMOOTHING-1) + axes[i])/DANCE_SMOOTHING;
+  }
+  NEXTMOVE(20);
 }
